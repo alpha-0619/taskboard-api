@@ -57,6 +57,18 @@ export interface Attachment {
   createdAt: string;
 }
 
+export interface Invite {
+  id: string;
+  projectId: string;
+  token: string;
+  role: MemberRole;
+  createdBy: string;
+  maxUses: number;
+  useCount: number;
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface AuditEntry {
   id: string;
   projectId: string | null;

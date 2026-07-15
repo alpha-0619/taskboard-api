@@ -1,5 +1,7 @@
 import * as commentRepository from '../repositories/commentRepository';
+import * as taskRepository from '../repositories/taskRepository';
 import * as taskService from './taskService';
+import * as projectService from './projectService';
 import * as auditRepository from '../repositories/auditRepository';
 import { generateId } from '../utils/ids';
 import { requireString } from '../utils/validation';
@@ -40,4 +42,26 @@ export function deleteComment(projectId: string, taskId: string, commentId: stri
     throw new ForbiddenError('you can only delete your own comments');
   }
   commentRepository.remove(commentId);
+}
+
+export function getCommentForViewer(commentId: string, viewerId: string) {
+  const comment = commentRepository.findById(commentId);
+  if (!comment) {
+    throw new NotFoundError('comment not found');
+  }
+  const task = taskRepository.findById(comment.taskId);
+  if (!task) {
+    throw new NotFoundError('comment not found');
+  }
+  const canView = projectService.canViewProjectResource(viewerId, task.projectId);
+  if (!canView) {
+    throw new ForbiddenError('you do not have access to this comment');
+  }
+  return {
+    id: comment.id,
+    body: comment.body,
+    authorId: comment.authorId,
+    taskId: comment.taskId,
+    createdAt: comment.createdAt,
+  };
 }

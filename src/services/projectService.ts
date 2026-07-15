@@ -1,7 +1,8 @@
 import * as projectRepository from '../repositories/projectRepository';
+import * as inviteRepository from '../repositories/inviteRepository';
 import * as auditRepository from '../repositories/auditRepository';
-import { generateId } from '../utils/ids';
-import { optionalString, requireString } from '../utils/validation';
+import { generateId, generateInviteToken } from '../utils/ids';
+import { optionalString, requireString, validateInviteRequest } from '../utils/validation';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors';
 import { MemberRole, Project } from '../types';
 
@@ -96,4 +97,55 @@ export function listMembers(projectId: string, requestedBy: string) {
 
 export function isProjectMember(projectId: string, userId: string): boolean {
   return projectRepository.getMembership(projectId, userId) !== null;
+}
+
+export function createInvite(projectId: string, requestedBy: string, body: unknown) {
+  const { role, maxUses, expiresInDays } = validateInviteRequest(body);
+  const now = new Date();
+  const invite = inviteRepository.create({
+    id: generateId(),
+    projectId,
+    token: generateInviteToken(),
+    role,
+    createdBy: requestedBy,
+    maxUses,
+    expiresAt: new Date(now.getTime() + expiresInDays * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: now.toISOString(),
+  });
+  auditRepository.record({ projectId, actorId: requestedBy, action: 'invite.created', metadata: { inviteId: invite.id, role } });
+  return { token: invite.token, role: invite.role, maxUses: invite.maxUses, expiresAt: invite.expiresAt };
+}
+
+export function acceptInvite(token: string, userId: string): Project {
+  const invite = inviteRepository.findActiveByToken(token);
+  if (!invite) {
+    throw new NotFoundError('this invite link is invalid, expired, or already used');
+  }
+  const project = projectRepository.findById(invite.projectId);
+  if (!project) {
+    throw new NotFoundError('project not found');
+  }
+  projectRepository.addMember(invite.projectId, userId, invite.role, new Date().toISOString());
+  inviteRepository.recordUse(invite.id);
+  auditRepository.record({ projectId: invite.projectId, actorId: userId, action: 'invite.accepted', metadata: { inviteId: invite.id } });
+  return project;
+}
+
+export function getProjectPreview(projectId: string, viewerId: string): { name: string; memberCount: number } {
+  if (!canViewProjectResource(viewerId, projectId)) {
+    throw new ForbiddenError('you do not have access to this project');
+  }
+  const project = projectRepository.findById(projectId);
+  if (!project) {
+    throw new NotFoundError('project not found');
+  }
+  const members = projectRepository.listMembers(projectId);
+  return { name: project.name, memberCount: members.length };
+}
+
+export function canViewProjectResource(userId: string, projectId: string): boolean {
+  if (projectRepository.getMembership(projectId, userId)) {
+    return true;
+  }
+  return inviteRepository.hasActiveInviteForProject(projectId);
 }

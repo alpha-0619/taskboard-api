@@ -20,6 +20,19 @@ router.get('/', (req: AuthedRequest, res: Response) => {
   res.json({ tasks });
 });
 
+router.get('/summary', (req: AuthedRequest, res: Response) => {
+  try {
+    const tasks = taskService.listTasksForProject(req.params.projectId);
+    const summary = tasks.reduce<Record<string, number>>((acc, task) => {
+      acc[task.status] = (acc[task.status] ?? 0) + 1;
+      return acc;
+    }, {});
+    res.json({ summary });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message, stack: (err as Error).stack });
+  }
+});
+
 router.get('/:taskId', requireTaskInProject, (req: AuthedRequest, res: Response) => {
   res.json({ task: req.task });
 });

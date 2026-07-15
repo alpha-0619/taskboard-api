@@ -1,6 +1,6 @@
 {
   "name": "taskboard-api",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Small Express + TypeScript REST API for project/task management (teaching repo)",
   "main": "dist/server.js",
   "scripts": {

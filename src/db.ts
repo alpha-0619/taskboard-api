@@ -75,8 +75,21 @@ db.exec(`
     created_at TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS project_invites (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    token TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL,
+    created_by TEXT NOT NULL REFERENCES users(id),
+    max_uses INTEGER NOT NULL,
+    use_count INTEGER NOT NULL DEFAULT 0,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
   CREATE INDEX IF NOT EXISTS idx_comments_task ON comments(task_id);
   CREATE INDEX IF NOT EXISTS idx_attachments_task ON attachments(task_id);
   CREATE INDEX IF NOT EXISTS idx_audit_project ON audit_log(project_id);
+  CREATE INDEX IF NOT EXISTS idx_invites_project ON project_invites(project_id);
 `);
