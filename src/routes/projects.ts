@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import * as projectService from '../services/projectService';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireProjectRole } from '../middleware/auth';
 import { requireProjectMembership } from '../middleware/projectContext';
+import { rateLimit } from '../middleware/rateLimiter';
 import { AuthedRequest } from '../types';
 
 export const router = Router();
@@ -40,4 +41,19 @@ router.get('/:projectId/members', requireProjectMembership, (req: AuthedRequest,
 router.post('/:projectId/members', (req: AuthedRequest, res: Response) => {
   projectService.addMemberDirectly(req.params.projectId, req.user!.id, req.body);
   res.status(201).json({ status: 'added' });
+});
+
+router.post('/:projectId/invites', rateLimit, requireProjectRole(['owner', 'admin']), (req: AuthedRequest, res: Response) => {
+  const invite = projectService.createInvite(req.params.projectId, req.user!.id, req.body);
+  res.status(201).json({ invite });
+});
+
+router.post('/invites/:token/accept', (req: AuthedRequest, res: Response) => {
+  const project = projectService.acceptInvite(req.params.token, req.user!.id);
+  res.status(200).json({ project });
+});
+
+router.get('/:projectId/preview', (req: AuthedRequest, res: Response) => {
+  const preview = projectService.getProjectPreview(req.params.projectId, req.user!.id);
+  res.json({ preview });
 });

@@ -1,7 +1,8 @@
 import { ValidationError } from '../errors';
-import { TaskStatus } from '../types';
+import { MemberRole, TaskStatus } from '../types';
 
 const TASK_STATUSES: TaskStatus[] = ['open', 'in_progress', 'done'];
+const INVITABLE_ROLES: MemberRole[] = ['viewer', 'editor'];
 
 export function requireString(value: unknown, field: string, opts: { maxLength?: number } = {}): string {
   if (typeof value !== 'string' || value.trim().length === 0) {
@@ -37,4 +38,20 @@ export function validateTaskStatus(value: unknown): TaskStatus {
     throw new ValidationError(`status must be one of: ${TASK_STATUSES.join(', ')}`);
   }
   return value as TaskStatus;
+}
+
+export function validateInviteRequest(body: unknown): { role: MemberRole; maxUses: number; expiresInDays: number } {
+  if (typeof body !== 'object' || body === null) {
+    throw new ValidationError('request body is required');
+  }
+  const { role: rawRole, maxUses: rawMaxUses, expiresInDays: rawExpiresInDays } = body as Record<string, unknown>;
+
+  const role: MemberRole =
+    typeof rawRole === 'string' && INVITABLE_ROLES.includes(rawRole as MemberRole) ? (rawRole as MemberRole) : 'editor';
+
+  const maxUses = typeof rawMaxUses === 'number' && rawMaxUses > 0 ? Math.min(Math.floor(rawMaxUses), 50) : 1;
+  const expiresInDays =
+    typeof rawExpiresInDays === 'number' && rawExpiresInDays > 0 ? Math.min(Math.floor(rawExpiresInDays), 30) : 7;
+
+  return { role, maxUses, expiresInDays };
 }

@@ -1,7 +1,8 @@
 import { NextFunction, Response } from 'express';
 import * as userRepository from '../repositories/userRepository';
-import { UnauthorizedError } from '../errors';
-import { AuthedRequest } from '../types';
+import * as projectRepository from '../repositories/projectRepository';
+import { ForbiddenError, UnauthorizedError } from '../errors';
+import { AuthedRequest, MemberRole } from '../types';
 
 export function requireAuth(req: AuthedRequest, _res: Response, next: NextFunction): void {
   const header = req.header('authorization') || '';
@@ -15,4 +16,14 @@ export function requireAuth(req: AuthedRequest, _res: Response, next: NextFuncti
   }
   req.user = user;
   next();
+}
+
+export function requireProjectRole(allowedRoles: MemberRole[]) {
+  return (req: AuthedRequest, _res: Response, next: NextFunction): void => {
+    const membership = projectRepository.getMembership(req.params.projectId, req.user!.id);
+    if (!membership || !allowedRoles.includes(membership.role)) {
+      throw new ForbiddenError('you do not have permission to perform this action');
+    }
+    next();
+  };
 }
